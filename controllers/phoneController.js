@@ -144,4 +144,29 @@ const deletePhone = (req, res) => {
   }
 };
 
-module.exports = { createOrUpdatePhone, getPhones, updatePhone, deletePhone };
+const getRecordsByHour = (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        DATE_FORMAT(date, '%Y-%m-%d %H:00:00') AS hour, 
+        COUNT(*) AS total_records 
+      FROM 
+        phone_otp 
+      GROUP BY 
+        hour 
+      ORDER BY 
+        hour;
+    `;
+
+    connection.query(query, (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database query error', error: err });
+      }
+      res.json(results);
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+module.exports = { createOrUpdatePhone, getPhones, updatePhone, deletePhone, getRecordsByHour };
