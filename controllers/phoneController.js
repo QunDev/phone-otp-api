@@ -2,7 +2,7 @@ const connection = require('../config/db');
 
 const createOrUpdatePhone = (req, res) => {
   try {
-    const { phone, otp, date, status } = req.body;
+    const { phone, otp, status } = req.body;
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone field is required' });
@@ -17,7 +17,6 @@ const createOrUpdatePhone = (req, res) => {
       const phoneData = {
         phone,
         otp: otp || null,
-        date: date || null,
         status: status || null
       };
 
@@ -26,8 +25,8 @@ const createOrUpdatePhone = (req, res) => {
         const existingOtp = results[0].otp || '';
         const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
         
-        connection.query('UPDATE phone_otp SET otp = ?, date = ?, status = ? WHERE phone = ?', 
-          [newOtp, phoneData.date, phoneData.status, phone], 
+        connection.query('UPDATE phone_otp SET otp = ?, status = ? WHERE phone = ?', 
+          [newOtp, phoneData.status, phone], 
           (updateErr, updateResult) => {
             if (updateErr) {
               return res.status(500).json({ message: 'Database update error', error: updateErr });
@@ -36,8 +35,8 @@ const createOrUpdatePhone = (req, res) => {
         });
       } else {
         // Phone chưa tồn tại, thêm mới bản ghi
-        connection.query('INSERT INTO phone_otp (phone, otp, date, status) VALUES (?, ?, ?, ?)', 
-          [phoneData.phone, phoneData.otp, phoneData.date, phoneData.status], 
+        connection.query('INSERT INTO phone_otp (phone, otp, status) VALUES (?, ?, ?)', 
+          [phoneData.phone, phoneData.otp, phoneData.status], 
           (insertErr, insertResult) => {
             if (insertErr) {
               return res.status(500).json({ message: 'Database insertion error', error: insertErr });
@@ -87,7 +86,7 @@ const getPhones = (req, res) => {
 const updatePhone = (req, res) => {
   try {
     const { id } = req.params;
-    const { phone, otp, date, status } = req.body;
+    const { phone, otp, status } = req.body;
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone field is required' });
@@ -96,7 +95,6 @@ const updatePhone = (req, res) => {
     const phoneData = {
       phone,
       otp: otp || null,
-      date: date || null,
       status: status || null
     };
 
@@ -112,8 +110,8 @@ const updatePhone = (req, res) => {
       const existingOtp = results[0].otp || '';
       const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-      connection.query('UPDATE phone_otp SET phone = ?, otp = ?, date = ?, status = ? WHERE id = ?', 
-        [phoneData.phone, newOtp, phoneData.date, phoneData.status, id], 
+      connection.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ? WHERE id = ?', 
+        [phoneData.phone, newOtp, phoneData.status, id], 
         (updateErr, updateResult) => {
           if (updateErr) {
             return res.status(500).json({ message: 'Database update error', error: updateErr });
