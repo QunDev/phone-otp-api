@@ -8,7 +8,8 @@ function handleDisconnect() {
       host: '4.213.162.142',
       user: 'quanph35528',
       password: 'Qundevauto2k4!',
-      database: 'phone_otp_db'
+      database: 'phone_otp_db',
+      multipleStatements: true
     });
 
     connection.connect((err) => {

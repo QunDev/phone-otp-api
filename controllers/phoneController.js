@@ -170,15 +170,15 @@ const getRecordsByHour = (req, res) => {
         return res.status(500).json({ message: 'Database query error', error: err });
       }
       
-      const [hourlyResults, averageResults] = results;
-      const averageRecordsPerHour = averageResults[0].average_records_per_hour;
+      const hourlyResults = results[0];
+      const averageRecordsPerHour = results[1][0].average_records_per_hour;
       
       res.json({ hourlyResults, averageRecordsPerHour });
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
-}
+};
 
 const getPhoneByPhone = (req, res) => {
   try {
