@@ -149,7 +149,13 @@ const getRecordsByHour = (req, res) => {
     const query = `
       SELECT 
         DATE_FORMAT(date, '%Y-%m-%d %H:00:00') AS hour, 
-        COUNT(*) AS total_records 
+        COUNT(*) AS total_records,
+        (SELECT AVG(hourly_records.total_records) 
+         FROM (
+           SELECT COUNT(*) AS total_records 
+           FROM phone_otp 
+           GROUP BY DATE_FORMAT(date, '%Y-%m-%d %H:00:00')
+         ) AS hourly_records) AS average_records_per_hour
       FROM 
         phone_otp 
       WHERE 
@@ -169,7 +175,7 @@ const getRecordsByHour = (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
-}
+};
 
 const getPhoneByPhone = (req, res) => {
   try {
