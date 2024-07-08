@@ -152,6 +152,8 @@ const getRecordsByHour = (req, res) => {
         COUNT(*) AS total_records 
       FROM 
         phone_otp 
+      WHERE 
+        date >= DATE_SUB(NOW(), INTERVAL 2 HOUR) 
       GROUP BY 
         hour 
       ORDER BY 
@@ -167,7 +169,7 @@ const getRecordsByHour = (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
-};
+}
 
 const getPhoneByPhone = (req, res) => {
   try {
