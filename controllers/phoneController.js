@@ -2,7 +2,7 @@ const connection = require('../config/db');
 
 const createOrUpdatePhone = (req, res) => {
   try {
-    const { phone, otp, status } = req.body;
+    const { phone, otp, status, password } = req.body;
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone field is required' });
@@ -17,7 +17,8 @@ const createOrUpdatePhone = (req, res) => {
       const phoneData = {
         phone,
         otp: otp || null,
-        status: status || null
+        status: status || null,
+        password: password || null
       };
 
       if (results.length > 0) {
@@ -25,8 +26,8 @@ const createOrUpdatePhone = (req, res) => {
         const existingOtp = results[0].otp || '';
         const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
         
-        connection.query('UPDATE phone_otp SET otp = ?, status = ? WHERE phone = ?', 
-          [newOtp, phoneData.status, phone], 
+        connection.query('UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?', 
+          [newOtp, phoneData.status, phoneData.password, phone], 
           (updateErr, updateResult) => {
             if (updateErr) {
               return res.status(500).json({ message: 'Database update error', error: updateErr });
@@ -35,8 +36,8 @@ const createOrUpdatePhone = (req, res) => {
         });
       } else {
         // Phone chưa tồn tại, thêm mới bản ghi
-        connection.query('INSERT INTO phone_otp (phone, otp, status) VALUES (?, ?, ?)', 
-          [phoneData.phone, phoneData.otp, phoneData.status], 
+        connection.query('INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)', 
+          [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password], 
           (insertErr, insertResult) => {
             if (insertErr) {
               return res.status(500).json({ message: 'Database insertion error', error: insertErr });
@@ -86,7 +87,7 @@ const getPhones = (req, res) => {
 const updatePhone = (req, res) => {
   try {
     const { id } = req.params;
-    const { phone, otp, status } = req.body;
+    const { phone, otp, status, password } = req.body;
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone field is required' });
@@ -95,7 +96,8 @@ const updatePhone = (req, res) => {
     const phoneData = {
       phone,
       otp: otp || null,
-      status: status || null
+      status: status || null,
+      password: password || null
     };
 
     connection.query('SELECT * FROM phone_otp WHERE id = ?', [id], (err, results) => {
@@ -110,8 +112,8 @@ const updatePhone = (req, res) => {
       const existingOtp = results[0].otp || '';
       const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-      connection.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ? WHERE id = ?', 
-        [phoneData.phone, newOtp, phoneData.status, id], 
+      connection.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?', 
+        [phoneData.phone, newOtp, phoneData.status, phoneData.password, id], 
         (updateErr, updateResult) => {
           if (updateErr) {
             return res.status(500).json({ message: 'Database update error', error: updateErr });
@@ -167,4 +169,29 @@ const getRecordsByHour = (req, res) => {
   }
 };
 
-module.exports = { createOrUpdatePhone, getPhones, updatePhone, deletePhone, getRecordsByHour };
+const getPhoneByPhone = (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone parameter is required' });
+    }
+
+    connection.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database query error', error: err });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Phone not found' });
+      }
+
+      res.json(results[0]);
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+module.exports = { createOrUpdatePhone, getPhones, updatePhone, deletePhone, getRecordsByHour, getPhoneByPhone };
+
