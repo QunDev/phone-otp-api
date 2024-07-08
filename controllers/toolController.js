@@ -15,4 +15,17 @@ const getVersion = (req, res) => {
   }
 };
 
-module.exports = { getVersion };
+const downloadApk = (req, res) => {
+    try {
+      const filePath = path.join(__dirname, '../files/app.apk');
+      res.download(filePath, 'your-app.apk', (err) => {
+        if (err) {
+          res.status(500).json({ message: 'Error downloading the file', error: err });
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error });
+    }
+  };
+  
+  module.exports = { getVersion, downloadApk };
