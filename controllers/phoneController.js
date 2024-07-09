@@ -1,4 +1,4 @@
-const connection = require('../config/db');
+const pool = require('../config/db');
 
 const createOrUpdatePhone = (req, res) => {
   try {
@@ -10,7 +10,7 @@ const createOrUpdatePhone = (req, res) => {
     }
 
     // Kiểm tra sự tồn tại của phone
-    connection.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
+    pool.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
       if (err) {
         console.log('Database query error:', err);
         return res.status(500).json({ message: 'Database query error', error: err });
@@ -28,7 +28,7 @@ const createOrUpdatePhone = (req, res) => {
         const existingOtp = results[0].otp || '';
         const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
         
-        connection.query('UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?', 
+        pool.query('UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?', 
           [newOtp, phoneData.status, phoneData.password, phone], 
           (updateErr, updateResult) => {
             if (updateErr) {
@@ -40,7 +40,7 @@ const createOrUpdatePhone = (req, res) => {
         });
       } else {
         // Phone chưa tồn tại, thêm mới bản ghi
-        connection.query('INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)', 
+        pool.query('INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)', 
           [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password], 
           (insertErr, insertResult) => {
             if (insertErr) {
@@ -80,7 +80,7 @@ const getPhones = (req, res) => {
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    connection.query(query, params, (err, results) => {
+    pool.query(query, params, (err, results) => {
       if (err) {
         console.log('Database retrieval error:', err);
         return res.status(500).json({ message: 'Database retrieval error', error: err });
@@ -111,7 +111,7 @@ const updatePhone = (req, res) => {
       password: password || null
     };
 
-    connection.query('SELECT * FROM phone_otp WHERE id = ?', [id], (err, results) => {
+    pool.query('SELECT * FROM phone_otp WHERE id = ?', [id], (err, results) => {
       if (err) {
         console.log('Database query error:', err);
         return res.status(500).json({ message: 'Database query error', error: err });
@@ -125,7 +125,7 @@ const updatePhone = (req, res) => {
       const existingOtp = results[0].otp || '';
       const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-      connection.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?', 
+      pool.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?', 
         [phoneData.phone, newOtp, phoneData.status, phoneData.password, id], 
         (updateErr, updateResult) => {
           if (updateErr) {
@@ -146,7 +146,7 @@ const deletePhone = (req, res) => {
   try {
     const { id } = req.params;
 
-    connection.query('DELETE FROM phone_otp WHERE id = ?', [id], (err, result) => {
+    pool.query('DELETE FROM phone_otp WHERE id = ?', [id], (err, result) => {
       if (err) {
         console.log('Database deletion error:', err);
         return res.status(500).json({ message: 'Database deletion error', error: err });
@@ -185,7 +185,7 @@ const getRecordsByHour = (req, res) => {
         phone_otp;
     `;
 
-    connection.query(query, (err, results) => {
+    pool.query(query, (err, results) => {
       if (err) {
         console.log('Database query error:', err);
         return res.status(500).json({ message: 'Database query error', error: err });
@@ -212,7 +212,7 @@ const getPhoneByPhone = (req, res) => {
       return res.status(400).json({ message: 'Phone parameter is required' });
     }
 
-    connection.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
+    pool.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
       if (err) {
         console.log('Database query error:', err);
         return res.status(500).json({ message: 'Database query error', error: err });

@@ -1,4 +1,4 @@
-const connection = require('../config/db');
+const pool = require('../config/db');
 
 const createIP = (req, res) => {
   try {
@@ -15,7 +15,7 @@ const createIP = (req, res) => {
       date: date || null
     };
 
-    connection.query('INSERT INTO ip_addresses (ip, status, date) VALUES (?, ?, ?)', 
+    pool.query('INSERT INTO ip_addresses (ip, status, date) VALUES (?, ?, ?)', 
       [ipData.ip, ipData.status, ipData.date], 
       (err, result) => {
         if (err) {
@@ -53,7 +53,7 @@ const getIPs = (req, res) => {
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    connection.query(query, params, (err, results) => {
+    pool.query(query, params, (err, results) => {
       if (err) {
         console.log('Database retrieval error:', err);
         return res.status(500).json({ message: 'Database retrieval error', error: err });
@@ -83,7 +83,7 @@ const updateIP = (req, res) => {
       date: date || null
     };
 
-    connection.query('UPDATE ip_addresses SET ip = ?, status = ?, date = ? WHERE id = ?', 
+    pool.query('UPDATE ip_addresses SET ip = ?, status = ?, date = ? WHERE id = ?', 
       [ipData.ip, ipData.status, ipData.date, id], 
       (err, result) => {
         if (err) {
@@ -107,7 +107,7 @@ const deleteIP = (req, res) => {
   try {
     const { id } = req.params;
 
-    connection.query('DELETE FROM ip_addresses WHERE id = ?', [id], (err, result) => {
+    pool.query('DELETE FROM ip_addresses WHERE id = ?', [id], (err, result) => {
       if (err) {
         console.log('Database deletion error:', err);
         return res.status(500).json({ message: 'Database deletion error', error: err });
@@ -129,7 +129,7 @@ const checkIPExists = (req, res) => {
   try {
     const { ip } = req.params;
 
-    connection.query('SELECT * FROM ip_addresses WHERE ip = ?', [ip], (err, results) => {
+    pool.query('SELECT * FROM ip_addresses WHERE ip = ?', [ip], (err, results) => {
       if (err) {
         console.log('Database check error:', err);
         return res.status(500).json({ message: 'Database check error', error: err });

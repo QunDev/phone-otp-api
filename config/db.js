@@ -1,40 +1,59 @@
 const mysql = require('mysql');
 
-let connection;
+let pool;
+
+function createPool() {
+  pool = mysql.createPool({
+    connectionLimit: 10, // Tùy chỉnh số lượng kết nối tối đa
+    host: '74.225.136.162',
+    user: 'quanph35528',
+    password: 'Qundevauto2k4!',
+    database: 'phone_otp_db',
+    multipleStatements: true,
+    connectTimeout: 10000, // Thời gian chờ kết nối (10 giây)
+    acquireTimeout: 10000, // Thời gian chờ nhận kết nối (10 giây)
+  });
+
+  pool.on('connection', (connection) => {
+    console.log('New connection established with MySQL');
+  });
+
+  pool.on('acquire', (connection) => {
+    console.log('Connection %d acquired', connection.threadId);
+  });
+
+  pool.on('release', (connection) => {
+    console.log('Connection %d released', connection.threadId);
+  });
+
+  pool.on('error', (err) => {
+    console.error('Database error:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR') {
+      handleDisconnect();
+    } else {
+      throw err;
+    }
+  });
+}
 
 function handleDisconnect() {
   try {
-    connection = mysql.createConnection({
-      host: '4.213.162.142',
-      user: 'quanph35528',
-      password: 'Qundevauto2k4!',
-      database: 'phone_otp_db',
-      multipleStatements: true
-    });
-
-    connection.connect((err) => {
-      if (err) {
-        console.error('Error connecting to MySQL:', err);
-        setTimeout(handleDisconnect, 2000); // Attempt to reconnect after 2 seconds
-      } else {
-        console.log('Connected to MySQL');
-      }
-    });
-
-    connection.on('error', (err) => {
-      console.error('Database error:', err);
-      if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR') {
-        handleDisconnect();
-      } else {
-        throw err;
-      }
-    });
+    if (pool) {
+      pool.end((err) => {
+        if (err) {
+          console.error('Error ending the pool:', err);
+        }
+        createPool();
+      });
+    } else {
+      createPool();
+    }
   } catch (error) {
     console.error('An unexpected error occurred:', error);
-    setTimeout(handleDisconnect, 2000); // Attempt to reconnect after 2 seconds
+    setTimeout(handleDisconnect, 2000); // Thử lại kết nối sau 2 giây
   }
 }
 
 handleDisconnect();
 
-module.exports = connection;
+module.exports = pool;
