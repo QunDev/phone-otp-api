@@ -18,7 +18,7 @@ const getVersion = (req, res) => {
 const downloadApk = (req, res) => {
     try {
       const filePath = path.join(__dirname, '../files/app.apk');
-      res.download(filePath, 'your-app.apk', (err) => {
+      res.download(filePath, 'app.apk', (err) => {
         if (err) {
           res.status(500).json({ message: 'Error downloading the file', error: err });
         }
