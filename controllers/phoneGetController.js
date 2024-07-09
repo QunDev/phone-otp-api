@@ -1,10 +1,6 @@
-const db = require('../config/db');
+const pool = require('../config/db');
 const fs = require('fs').promises;
 const path = require('path');
-const { promisify } = require('util');
-
-// Chuyển đổi các hàm callback của db thành hàm promise
-const queryAsync = promisify(db.query).bind(db);
 
 exports.createPhone = async (req, res) => {
     try {
@@ -14,18 +10,30 @@ exports.createPhone = async (req, res) => {
             return res.status(400).send('Phone is required');
         }
 
+        // Kiểm tra nếu số điện thoại đã tồn tại
         const checkQuery = 'SELECT COUNT(*) AS count FROM phones WHERE phone = ?';
-        const results = await queryAsync(checkQuery, [phone]);
+        pool.query(checkQuery, [phone], (err, results) => {
+            if (err) {
+                console.log(`Error checking phone: ${err.message}`);
+                return res.status(500).send(`Error checking phone: ${err.message}`);
+            }
 
-        if (results[0].count > 0) {
-            console.log('Phone already exists');
-            return res.status(400).send('Phone already exists');
-        }
+            if (results[0].count > 0) {
+                console.log('Phone already exists');
+                return res.status(400).send('Phone already exists');
+            }
 
-        const query = 'INSERT INTO phones (phone, status) VALUES (?, ?)';
-        const insertResult = await queryAsync(query, [phone, status || null]);
-        console.log(`Phone added with ID: ${insertResult.insertId}`);
-        res.status(201).send(`Phone added with ID: ${insertResult.insertId}`);
+            // Nếu số điện thoại chưa tồn tại, thêm mới vào cơ sở dữ liệu
+            const query = 'INSERT INTO phones (phone, status) VALUES (?, ?)';
+            pool.query(query, [phone, status || null], (err, results) => {
+                if (err) {
+                    console.log(`Error creating phone: ${err.message}`);
+                    return res.status(500).send(`Error creating phone: ${err.message}`);
+                }
+                console.log(`Phone added with ID: ${results.insertId}`);
+                res.status(201).send(`Phone added with ID: ${results.insertId}`);
+            });
+        });
     } catch (err) {
         console.log(`Error creating phone: ${err.message}`);
         res.status(500).send(`Error creating phone: ${err.message}`);
@@ -48,14 +56,33 @@ exports.uploadPhones = async (req, res) => {
         let addedPhonesCount = 0;
 
         for (const phone of validPhones) {
-            const checkQuery = 'SELECT COUNT(*) AS count FROM phones WHERE phone = ?';
-            const results = await queryAsync(checkQuery, [phone]);
+            try {
+                // Kiểm tra nếu số điện thoại đã tồn tại
+                const checkQuery = 'SELECT COUNT(*) AS count FROM phones WHERE phone = ?';
+                const phoneExists = await new Promise((resolve, reject) => {
+                    pool.query(checkQuery, [phone], (err, results) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        resolve(results[0].count > 0);
+                    });
+                });
 
-            if (results[0].count === 0) {
-                await queryAsync(query, [phone, null]);
-                addedPhonesCount++;
-            } else {
-                console.log(`Phone ${phone} already exists, skipping.`);
+                if (!phoneExists) {
+                    await new Promise((resolve, reject) => {
+                        pool.query(query, [phone, null], (err) => {
+                            if (err) {
+                                return reject(err);
+                            }
+                            addedPhonesCount++;
+                            resolve();
+                        });
+                    });
+                } else {
+                    console.log(`Phone ${phone} already exists, skipping.`);
+                }
+            } catch (err) {
+                console.error(`Error inserting phone ${phone}: ${err.message}`);
             }
         }
 
@@ -70,9 +97,14 @@ exports.uploadPhones = async (req, res) => {
 exports.getPhones = async (req, res) => {
     try {
         const query = 'SELECT * FROM phones';
-        const results = await queryAsync(query);
-        console.log('Phones retrieved successfully');
-        res.status(200).json(results);
+        pool.query(query, (err, results) => {
+            if (err) {
+                console.log(`Error retrieving phones: ${err.message}`);
+                return res.status(500).send(`Error retrieving phones: ${err.message}`);
+            }
+            console.log('Phones retrieved successfully');
+            res.status(200).json(results);
+        });
     } catch (err) {
         console.log(`Error retrieving phones: ${err.message}`);
         res.status(500).send(`Error retrieving phones: ${err.message}`);
@@ -82,15 +114,18 @@ exports.getPhones = async (req, res) => {
 exports.getPhoneById = async (req, res) => {
     try {
         const query = 'SELECT * FROM phones WHERE id = ?';
-        const results = await queryAsync(query, [req.params.id]);
-
-        if (results.length === 0) {
-            console.log('Phone not found');
-            return res.status(404).send('Phone not found');
-        }
-
-        console.log(`Phone retrieved successfully with ID: ${req.params.id}`);
-        res.status(200).json(results[0]);
+        pool.query(query, [req.params.id], (err, results) => {
+            if (err) {
+                console.log(`Error retrieving phone: ${err.message}`);
+                return res.status(500).send(`Error retrieving phone: ${err.message}`);
+            }
+            if (results.length === 0) {
+                console.log('Phone not found');
+                return res.status(404).send('Phone not found');
+            }
+            console.log(`Phone retrieved successfully with ID: ${req.params.id}`);
+            res.status(200).json(results[0]);
+        });
     } catch (err) {
         console.log(`Error retrieving phone: ${err.message}`);
         res.status(500).send(`Error retrieving phone: ${err.message}`);
@@ -100,15 +135,18 @@ exports.getPhoneById = async (req, res) => {
 exports.deletePhone = async (req, res) => {
     try {
         const query = 'DELETE FROM phones WHERE id = ?';
-        const results = await queryAsync(query, [req.params.id]);
-
-        if (results.affectedRows === 0) {
-            console.log('Phone not found');
-            return res.status(404).send('Phone not found');
-        }
-
-        console.log(`Phone deleted successfully with ID: ${req.params.id}`);
-        res.status(200).send('Phone deleted successfully');
+        pool.query(query, [req.params.id], (err, results) => {
+            if (err) {
+                console.log(`Error deleting phone: ${err.message}`);
+                return res.status(500).send(`Error deleting phone: ${err.message}`);
+            }
+            if (results.affectedRows === 0) {
+                console.log('Phone not found');
+                return res.status(404).send('Phone not found');
+            }
+            console.log(`Phone deleted successfully with ID: ${req.params.id}`);
+            res.status(200).send('Phone deleted successfully');
+        });
     } catch (err) {
         console.log(`Error deleting phone: ${err.message}`);
         res.status(500).send(`Error deleting phone: ${err.message}`);
@@ -116,12 +154,19 @@ exports.deletePhone = async (req, res) => {
 };
 
 exports.getRandomPhone = async (req, res) => {
-    const connection = await db.getConnection();
+    const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
 
         const queryCount = 'SELECT COUNT(*) AS count FROM phones WHERE is_taken = FALSE';
-        const resultsCount = await queryAsync(queryCount);
+        const resultsCount = await new Promise((resolve, reject) => {
+            connection.query(queryCount, (err, results) => {
+                if (err) {
+                    return reject(err);
+                }
+                resolve(results);
+            });
+        });
 
         const count = resultsCount[0].count;
         if (count === 0) {
@@ -132,11 +177,25 @@ exports.getRandomPhone = async (req, res) => {
 
         const randomIndex = Math.floor(Math.random() * count);
         const queryRandom = 'SELECT * FROM phones WHERE is_taken = FALSE LIMIT 1 OFFSET ?';
-        const resultsRandom = await queryAsync(queryRandom, [randomIndex]);
+        const resultsRandom = await new Promise((resolve, reject) => {
+            connection.query(queryRandom, [randomIndex], (err, results) => {
+                if (err) {
+                    return reject(err);
+                }
+                resolve(results);
+            });
+        });
 
         const phone = resultsRandom[0];
         const queryUpdate = 'UPDATE phones SET is_taken = TRUE WHERE id = ?';
-        await queryAsync(queryUpdate, [phone.id]);
+        await new Promise((resolve, reject) => {
+            connection.query(queryUpdate, [phone.id], (err) => {
+                if (err) {
+                    return reject(err);
+                }
+                resolve();
+            });
+        });
 
         await connection.commit();
         console.log(`Random phone retrieved successfully with ID: ${phone.id}`);
@@ -176,15 +235,18 @@ exports.updatePhone = async (req, res) => {
         values.push(id);
 
         const query = `UPDATE phones SET ${fields.join(', ')} WHERE id = ?`;
-        const results = await queryAsync(query, values);
-
-        if (results.affectedRows === 0) {
-            console.log('Phone not found');
-            return res.status(404).send('Phone not found');
-        }
-
-        console.log(`Phone updated successfully with ID: ${id}`);
-        res.status(200).send('Phone updated successfully');
+        pool.query(query, values, (err, results) => {
+            if (err) {
+                console.log(`Error updating phone: ${err.message}`);
+                return res.status(500).send(`Error updating phone: ${err.message}`);
+            }
+            if (results.affectedRows === 0) {
+                console.log('Phone not found');
+                return res.status(404).send('Phone not found');
+            }
+            console.log(`Phone updated successfully with ID: ${id}`);
+            res.status(200).send('Phone updated successfully');
+        });
     } catch (err) {
         console.log(`Error updating phone: ${err.message}`);
         res.status(500).send(`Error updating phone: ${err.message}`);
@@ -202,15 +264,18 @@ exports.updateIsTakenById = async (req, res) => {
         }
 
         const query = 'UPDATE phones SET is_taken = ? WHERE id = ?';
-        const results = await queryAsync(query, [is_taken, id]);
-
-        if (results.affectedRows === 0) {
-            console.log('Phone not found');
-            return res.status(404).send('Phone not found');
-        }
-
-        console.log(`Phone updated successfully with ID: ${id}`);
-        res.status(200).send('Phone updated successfully');
+        pool.query(query, [is_taken, id], (err, results) => {
+            if (err) {
+                console.log(`Error updating phone: ${err.message}`);
+                return res.status(500).send(`Error updating phone: ${err.message}`);
+            }
+            if (results.affectedRows === 0) {
+                console.log('Phone not found');
+                return res.status(404).send('Phone not found');
+            }
+            console.log(`Phone updated successfully with ID: ${id}`);
+            res.status(200).send('Phone updated successfully');
+        });
     } catch (err) {
         console.log(`Error updating phone: ${err.message}`);
         res.status(500).send(`Error updating phone: ${err.message}`);
@@ -227,10 +292,14 @@ exports.updateIsTakenForAll = async (req, res) => {
         }
 
         const query = 'UPDATE phones SET is_taken = ?';
-        const results = await queryAsync(query, [is_taken]);
-
-        console.log(`Updated is_taken for ${results.affectedRows} phones successfully`);
-        res.status(200).send(`Updated is_taken for ${results.affectedRows} phones successfully`);
+        pool.query(query, [is_taken], (err, results) => {
+            if (err) {
+                console.log(`Error updating phones: ${err.message}`);
+                return res.status(500).send(`Error updating phones: ${err.message}`);
+            }
+            console.log(`Updated is_taken for ${results.affectedRows} phones successfully`);
+            res.status(200).send(`Updated is_taken for ${results.affectedRows} phones successfully`);
+        });
     } catch (err) {
         console.log(`Error updating phones: ${err.message}`);
         res.status(500).send(`Error updating phones: ${err.message}`);
