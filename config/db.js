@@ -10,8 +10,8 @@ function createPool() {
     password: 'Qundevauto2k4!',
     database: 'phone_otp_db',
     multipleStatements: true,
-    connectTimeout: 20000, // Thời gian chờ kết nối (10 giây)
-    acquireTimeout: 20000, // Thời gian chờ nhận kết nối (10 giây)
+    connectTimeout: 20000, // Thời gian chờ kết nối (20 giây)
+    acquireTimeout: 20000, // Thời gian chờ nhận kết nối (20 giây)
   });
 
   pool.on('connection', (connection) => {

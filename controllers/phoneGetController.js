@@ -154,8 +154,15 @@ exports.deletePhone = async (req, res) => {
 };
 
 exports.getRandomPhone = async (req, res) => {
-    const connection = await pool.getConnection();
     try {
+        const connection = await pool.getConnection((err, connection) => {
+            if (err) {
+                console.log(`Error getting connection: ${err.message}`);
+                return res.status(500).send(`Error getting connection: ${err.message}`);
+            }
+            return connection;
+        });
+
         await connection.beginTransaction();
 
         const queryCount = 'SELECT COUNT(*) AS count FROM phones WHERE is_taken = FALSE';
@@ -171,6 +178,7 @@ exports.getRandomPhone = async (req, res) => {
         const count = resultsCount[0].count;
         if (count === 0) {
             await connection.rollback();
+            connection.release();
             console.log('No available phones found');
             return res.status(404).send('No available phones found');
         }
@@ -198,16 +206,19 @@ exports.getRandomPhone = async (req, res) => {
         });
 
         await connection.commit();
+        connection.release();
         console.log(`Random phone retrieved successfully with ID: ${phone.id}`);
         res.status(200).json(phone);
     } catch (err) {
-        await connection.rollback();
+        if (connection) {
+            await connection.rollback();
+            connection.release();
+        }
         console.log(`Error retrieving random phone: ${err.message}`);
         res.status(500).send(`Error retrieving random phone: ${err.message}`);
-    } finally {
-        connection.release();
     }
 };
+
 
 exports.updatePhone = async (req, res) => {
     try {
