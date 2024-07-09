@@ -1,17 +1,17 @@
-const mysql = require('mysql');
+const mysql = require('mysql2/promise');
 
 let pool;
 
 function createPool() {
   pool = mysql.createPool({
-    connectionLimit: 50, // Tùy chỉnh số lượng kết nối tối đa
+    connectionLimit: 50,
     host: '74.225.136.162',
     user: 'quanph35528',
     password: 'Qundevauto2k4!',
     database: 'phone_otp_db',
     multipleStatements: true,
-    connectTimeout: 20000, // Thời gian chờ kết nối (20 giây)
-    acquireTimeout: 20000, // Thời gian chờ nhận kết nối (20 giây)
+    connectTimeout: 20000,
+    acquireTimeout: 20000,
   });
 
   pool.on('connection', (connection) => {
@@ -50,7 +50,7 @@ function handleDisconnect() {
     }
   } catch (error) {
     console.error('An unexpected error occurred:', error);
-    setTimeout(handleDisconnect, 2000); // Thử lại kết nối sau 2 giây
+    setTimeout(handleDisconnect, 2000);
   }
 }
 

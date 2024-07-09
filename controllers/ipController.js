@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-const createIP = (req, res) => {
+const createIP = async (req, res) => {
   try {
     const { ip, status, date } = req.body;
 
@@ -9,29 +9,20 @@ const createIP = (req, res) => {
       return res.status(400).json({ message: 'IP field is required' });
     }
 
-    const ipData = {
-      ip,
-      status: status || null,
-      date: date || null
-    };
+    const ipData = { ip, status: status || null, date: date || null };
 
-    pool.query('INSERT INTO ip_addresses (ip, status, date) VALUES (?, ?, ?)', 
-      [ipData.ip, ipData.status, ipData.date], 
-      (err, result) => {
-        if (err) {
-          console.log('Database insertion error:', err);
-          return res.status(500).json({ message: 'Database insertion error', error: err });
-        }
-        console.log('IP created:', { id: result.insertId, ...ipData });
-        res.status(201).json({ id: result.insertId, ...ipData });
-    });
+    const query = 'INSERT INTO ip_addresses (ip, status, date) VALUES (?, ?, ?)';
+    const [result] = await pool.query(query, [ipData.ip, ipData.status, ipData.date]);
+
+    console.log('IP created:', { id: result.insertId, ...ipData });
+    res.status(201).json({ id: result.insertId, ...ipData });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const getIPs = (req, res) => {
+const getIPs = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, ip } = req.query;
     const offset = (page - 1) * limit;
@@ -53,21 +44,16 @@ const getIPs = (req, res) => {
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    pool.query(query, params, (err, results) => {
-      if (err) {
-        console.log('Database retrieval error:', err);
-        return res.status(500).json({ message: 'Database retrieval error', error: err });
-      }
-      console.log('IPs retrieved:', results);
-      res.json(results);
-    });
+    const [results] = await pool.query(query, params);
+    console.log('IPs retrieved:', results);
+    res.json(results);
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const updateIP = (req, res) => {
+const updateIP = async (req, res) => {
   try {
     const { id } = req.params;
     const { ip, status, date } = req.body;
@@ -77,71 +63,58 @@ const updateIP = (req, res) => {
       return res.status(400).json({ message: 'IP field is required' });
     }
 
-    const ipData = {
-      ip,
-      status: status || null,
-      date: date || null
-    };
+    const ipData = { ip, status: status || null, date: date || null };
 
-    pool.query('UPDATE ip_addresses SET ip = ?, status = ?, date = ? WHERE id = ?', 
-      [ipData.ip, ipData.status, ipData.date, id], 
-      (err, result) => {
-        if (err) {
-          console.log('Database update error:', err);
-          return res.status(500).json({ message: 'Database update error', error: err });
-        }
-        if (result.affectedRows === 0) {
-          console.log('IP not found');
-          return res.status(404).json({ message: 'IP not found' });
-        }
-        console.log('IP updated:', { id, ...ipData });
-        res.json({ message: 'IP updated', affectedRows: result.affectedRows });
-    });
+    const query = 'UPDATE ip_addresses SET ip = ?, status = ?, date = ? WHERE id = ?';
+    const [result] = await pool.query(query, [ipData.ip, ipData.status, ipData.date, id]);
+
+    if (result.affectedRows === 0) {
+      console.log('IP not found');
+      return res.status(404).json({ message: 'IP not found' });
+    }
+
+    console.log('IP updated:', { id, ...ipData });
+    res.json({ message: 'IP updated', affectedRows: result.affectedRows });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const deleteIP = (req, res) => {
+const deleteIP = async (req, res) => {
   try {
     const { id } = req.params;
 
-    pool.query('DELETE FROM ip_addresses WHERE id = ?', [id], (err, result) => {
-      if (err) {
-        console.log('Database deletion error:', err);
-        return res.status(500).json({ message: 'Database deletion error', error: err });
-      }
-      if (result.affectedRows === 0) {
-        console.log('IP not found');
-        return res.status(404).json({ message: 'IP not found' });
-      }
-      console.log('IP deleted:', { id });
-      res.json({ message: 'IP deleted', affectedRows: result.affectedRows });
-    });
+    const query = 'DELETE FROM ip_addresses WHERE id = ?';
+    const [result] = await pool.query(query, [id]);
+
+    if (result.affectedRows === 0) {
+      console.log('IP not found');
+      return res.status(404).json({ message: 'IP not found' });
+    }
+
+    console.log('IP deleted:', { id });
+    res.json({ message: 'IP deleted', affectedRows: result.affectedRows });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const checkIPExists = (req, res) => {
+const checkIPExists = async (req, res) => {
   try {
     const { ip } = req.params;
 
-    pool.query('SELECT * FROM ip_addresses WHERE ip = ?', [ip], (err, results) => {
-      if (err) {
-        console.log('Database check error:', err);
-        return res.status(500).json({ message: 'Database check error', error: err });
-      }
-      if (results.length > 0) {
-        console.log('IP exists:', { ip });
-        res.json({ exists: true });
-      } else {
-        console.log('IP does not exist:', { ip });
-        res.json({ exists: false });
-      }
-    });
+    const query = 'SELECT * FROM ip_addresses WHERE ip = ?';
+    const [results] = await pool.query(query, [ip]);
+
+    if (results.length > 0) {
+      console.log('IP exists:', { ip });
+      res.json({ exists: true });
+    } else {
+      console.log('IP does not exist:', { ip });
+      res.json({ exists: false });
+    }
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });

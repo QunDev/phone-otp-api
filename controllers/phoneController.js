@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-const createOrUpdatePhone = (req, res) => {
+const createOrUpdatePhone = async (req, res) => {
   try {
     const { phone, otp, status, password } = req.body;
 
@@ -9,56 +9,38 @@ const createOrUpdatePhone = (req, res) => {
       return res.status(400).json({ message: 'Phone field is required' });
     }
 
-    // Kiểm tra sự tồn tại của phone
-    pool.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
-      if (err) {
-        console.log('Database query error:', err);
-        return res.status(500).json({ message: 'Database query error', error: err });
-      }
+    const [results] = await pool.query('SELECT * FROM phone_otp WHERE phone = ?', [phone]);
 
-      const phoneData = {
-        phone,
-        otp: otp || null,
-        status: status || null,
-        password: password || null
-      };
+    const phoneData = {
+      phone,
+      otp: otp || null,
+      status: status || null,
+      password: password || null
+    };
 
-      if (results.length > 0) {
-        // Phone đã tồn tại, cập nhật bản ghi
-        const existingOtp = results[0].otp || '';
-        const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
-        
-        pool.query('UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?', 
-          [newOtp, phoneData.status, phoneData.password, phone], 
-          (updateErr, updateResult) => {
-            if (updateErr) {
-              console.log('Database update error:', updateErr);
-              return res.status(500).json({ message: 'Database update error', error: updateErr });
-            }
-            console.log('Phone updated:', { phone, affectedRows: updateResult.affectedRows });
-            res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
-        });
-      } else {
-        // Phone chưa tồn tại, thêm mới bản ghi
-        pool.query('INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)', 
-          [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password], 
-          (insertErr, insertResult) => {
-            if (insertErr) {
-              console.log('Database insertion error:', insertErr);
-              return res.status(500).json({ message: 'Database insertion error', error: insertErr });
-            }
-            console.log('Phone created:', { id: insertResult.insertId, ...phoneData });
-            res.status(201).json({ id: insertResult.insertId, ...phoneData });
-        });
-      }
-    });
+    if (results.length > 0) {
+      const existingOtp = results[0].otp || '';
+      const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
+
+      const query = 'UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?';
+      const [updateResult] = await pool.query(query, [newOtp, phoneData.status, phoneData.password, phone]);
+
+      console.log('Phone updated:', { phone, affectedRows: updateResult.affectedRows });
+      res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
+    } else {
+      const query = 'INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)';
+      const [insertResult] = await pool.query(query, [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password]);
+
+      console.log('Phone created:', { id: insertResult.insertId, ...phoneData });
+      res.status(201).json({ id: insertResult.insertId, ...phoneData });
+    }
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const getPhones = (req, res) => {
+const getPhones = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, phone } = req.query;
     const offset = (page - 1) * limit;
@@ -80,21 +62,16 @@ const getPhones = (req, res) => {
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    pool.query(query, params, (err, results) => {
-      if (err) {
-        console.log('Database retrieval error:', err);
-        return res.status(500).json({ message: 'Database retrieval error', error: err });
-      }
-      console.log('Phones retrieved:', results);
-      res.json(results);
-    });
+    const [results] = await pool.query(query, params);
+    console.log('Phones retrieved:', results);
+    res.json(results);
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const updatePhone = (req, res) => {
+const updatePhone = async (req, res) => {
   try {
     const { id } = req.params;
     const { phone, otp, status, password } = req.body;
@@ -104,67 +81,48 @@ const updatePhone = (req, res) => {
       return res.status(400).json({ message: 'Phone field is required' });
     }
 
-    const phoneData = {
-      phone,
-      otp: otp || null,
-      status: status || null,
-      password: password || null
-    };
+    const [results] = await pool.query('SELECT * FROM phone_otp WHERE id = ?', [id]);
 
-    pool.query('SELECT * FROM phone_otp WHERE id = ?', [id], (err, results) => {
-      if (err) {
-        console.log('Database query error:', err);
-        return res.status(500).json({ message: 'Database query error', error: err });
-      }
+    if (results.length === 0) {
+      console.log('Phone not found');
+      return res.status(404).json({ message: 'Phone not found' });
+    }
 
-      if (results.length === 0) {
-        console.log('Phone not found');
-        return res.status(404).json({ message: 'Phone not found' });
-      }
+    const existingOtp = results[0].otp || '';
+    const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-      const existingOtp = results[0].otp || '';
-      const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
+    const query = 'UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?';
+    const [updateResult] = await pool.query(query, [phone, newOtp, status, password, id]);
 
-      pool.query('UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?', 
-        [phoneData.phone, newOtp, phoneData.status, phoneData.password, id], 
-        (updateErr, updateResult) => {
-          if (updateErr) {
-            console.log('Database update error:', updateErr);
-            return res.status(500).json({ message: 'Database update error', error: updateErr });
-          }
-          console.log('Phone updated:', { id, affectedRows: updateResult.affectedRows });
-          res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
-      });
-    });
+    console.log('Phone updated:', { id, affectedRows: updateResult.affectedRows });
+    res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const deletePhone = (req, res) => {
+const deletePhone = async (req, res) => {
   try {
     const { id } = req.params;
 
-    pool.query('DELETE FROM phone_otp WHERE id = ?', [id], (err, result) => {
-      if (err) {
-        console.log('Database deletion error:', err);
-        return res.status(500).json({ message: 'Database deletion error', error: err });
-      }
-      if (result.affectedRows === 0) {
-        console.log('Phone not found');
-        return res.status(404).json({ message: 'Phone not found' });
-      }
-      console.log('Phone deleted:', { id });
-      res.json({ message: 'Phone deleted', affectedRows: result.affectedRows });
-    });
+    const query = 'DELETE FROM phone_otp WHERE id = ?';
+    const [result] = await pool.query(query, [id]);
+
+    if (result.affectedRows === 0) {
+      console.log('Phone not found');
+      return res.status(404).json({ message: 'Phone not found' });
+    }
+
+    console.log('Phone deleted:', { id });
+    res.json({ message: 'Phone deleted', affectedRows: result.affectedRows });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const getRecordsByHour = (req, res) => {
+const getRecordsByHour = async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -185,25 +143,19 @@ const getRecordsByHour = (req, res) => {
         phone_otp;
     `;
 
-    pool.query(query, (err, results) => {
-      if (err) {
-        console.log('Database query error:', err);
-        return res.status(500).json({ message: 'Database query error', error: err });
-      }
-      
-      const hourlyResults = results[0];
-      const averageRecordsPerHour = results[1][0].average_records_per_hour;
-      
-      console.log('Records by hour retrieved:', { hourlyResults, averageRecordsPerHour });
-      res.json({ hourlyResults, averageRecordsPerHour });
-    });
+    const [results] = await pool.query(query);
+    const hourlyResults = results[0];
+    const averageRecordsPerHour = results[1][0].average_records_per_hour;
+
+    console.log('Records by hour retrieved:', { hourlyResults, averageRecordsPerHour });
+    res.json({ hourlyResults, averageRecordsPerHour });
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
 
-const getPhoneByPhone = (req, res) => {
+const getPhoneByPhone = async (req, res) => {
   try {
     const { phone } = req.params;
 
@@ -212,20 +164,16 @@ const getPhoneByPhone = (req, res) => {
       return res.status(400).json({ message: 'Phone parameter is required' });
     }
 
-    pool.query('SELECT * FROM phone_otp WHERE phone = ?', [phone], (err, results) => {
-      if (err) {
-        console.log('Database query error:', err);
-        return res.status(500).json({ message: 'Database query error', error: err });
-      }
+    const query = 'SELECT * FROM phone_otp WHERE phone = ?';
+    const [results] = await pool.query(query, [phone]);
 
-      if (results.length === 0) {
-        console.log('Phone not found');
-        return res.status(404).json({ message: 'Phone not found' });
-      }
+    if (results.length === 0) {
+      console.log('Phone not found');
+      return res.status(404).json({ message: 'Phone not found' });
+    }
 
-      console.log('Phone retrieved:', results[0]);
-      res.json(results[0]);
-    });
+    console.log('Phone retrieved:', results[0]);
+    res.json(results[0]);
   } catch (error) {
     console.log('Server error:', error);
     res.status(500).json({ message: 'Server error', error });
