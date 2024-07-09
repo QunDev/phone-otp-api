@@ -4,14 +4,14 @@ let pool;
 
 function createPool() {
   pool = mysql.createPool({
-    connectionLimit: 10, // Tùy chỉnh số lượng kết nối tối đa
+    connectionLimit: 50, // Tùy chỉnh số lượng kết nối tối đa
     host: '74.225.136.162',
     user: 'quanph35528',
     password: 'Qundevauto2k4!',
     database: 'phone_otp_db',
     multipleStatements: true,
-    connectTimeout: 10000, // Thời gian chờ kết nối (10 giây)
-    acquireTimeout: 10000, // Thời gian chờ nhận kết nối (10 giây)
+    connectTimeout: 20000, // Thời gian chờ kết nối (10 giây)
+    acquireTimeout: 20000, // Thời gian chờ nhận kết nối (10 giây)
   });
 
   pool.on('connection', (connection) => {
