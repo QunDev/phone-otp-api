@@ -3,7 +3,9 @@ const fs = require('fs').promises;
 const path = require('path');
 
 exports.createPhone = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { phone, status } = req.body;
     if (!phone) {
       console.log('Phone is required');
@@ -11,7 +13,7 @@ exports.createPhone = async (req, res) => {
     }
 
     const checkQuery = 'SELECT COUNT(*) AS count FROM phones WHERE phone = ?';
-    const [checkResults] = await pool.query(checkQuery, [phone]);
+    const [checkResults] = await connection.query(checkQuery, [phone]);
 
     if (checkResults[0].count > 0) {
       console.log('Phone already exists');
@@ -19,18 +21,22 @@ exports.createPhone = async (req, res) => {
     }
 
     const query = 'INSERT INTO phones (phone, status) VALUES (?, ?)';
-    const [results] = await pool.query(query, [phone, status || null]);
+    const [results] = await connection.query(query, [phone, status || null]);
 
     console.log(`Phone added with ID: ${results.insertId}`);
     res.status(201).send(`Phone added with ID: ${results.insertId}`);
   } catch (err) {
     console.log(`Error creating phone: ${err.message}`);
     res.status(500).send(`Error creating phone: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.uploadPhones = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     if (!req.file) {
       console.log('No file uploaded');
       return res.status(400).send('No file uploaded');
@@ -47,10 +53,10 @@ exports.uploadPhones = async (req, res) => {
     for (const phone of validPhones) {
       try {
         const checkQuery = 'SELECT COUNT(*) AS count FROM phones WHERE phone = ?';
-        const [checkResults] = await pool.query(checkQuery, [phone]);
+        const [checkResults] = await connection.query(checkQuery, [phone]);
 
         if (checkResults[0].count === 0) {
-          await pool.query(query, [phone, null]);
+          await connection.query(query, [phone, null]);
           addedPhonesCount++;
         } else {
           console.log(`Phone ${phone} already exists, skipping.`);
@@ -65,26 +71,34 @@ exports.uploadPhones = async (req, res) => {
   } catch (err) {
     console.log(`Error processing file: ${err.message}`);
     res.status(500).send(`Error processing file: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.getPhones = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const query = 'SELECT * FROM phones';
-    const [results] = await pool.query(query);
+    const [results] = await connection.query(query);
 
     console.log('Phones retrieved successfully');
     res.status(200).json(results);
   } catch (err) {
     console.log(`Error retrieving phones: ${err.message}`);
     res.status(500).send(`Error retrieving phones: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.getPhoneById = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const query = 'SELECT * FROM phones WHERE id = ?';
-    const [results] = await pool.query(query, [req.params.id]);
+    const [results] = await connection.query(query, [req.params.id]);
 
     if (results.length === 0) {
       console.log('Phone not found');
@@ -96,13 +110,17 @@ exports.getPhoneById = async (req, res) => {
   } catch (err) {
     console.log(`Error retrieving phone: ${err.message}`);
     res.status(500).send(`Error retrieving phone: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.deletePhone = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const query = 'DELETE FROM phones WHERE id = ?';
-    const [results] = await pool.query(query, [req.params.id]);
+    const [results] = await connection.query(query, [req.params.id]);
 
     if (results.affectedRows === 0) {
       console.log('Phone not found');
@@ -114,6 +132,8 @@ exports.deletePhone = async (req, res) => {
   } catch (err) {
     console.log(`Error deleting phone: ${err.message}`);
     res.status(500).send(`Error deleting phone: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
@@ -157,7 +177,9 @@ exports.getRandomPhone = async (req, res) => {
 };
 
 exports.updatePhone = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { phone, status } = req.body;
     const { id } = req.params;
 
@@ -182,7 +204,7 @@ exports.updatePhone = async (req, res) => {
     values.push(id);
 
     const query = `UPDATE phones SET ${fields.join(', ')} WHERE id = ?`;
-    const [results] = await pool.query(query, values);
+    const [results] = await connection.query(query, values);
 
     if (results.affectedRows === 0) {
       console.log('Phone not found');
@@ -194,11 +216,15 @@ exports.updatePhone = async (req, res) => {
   } catch (err) {
     console.log(`Error updating phone: ${err.message}`);
     res.status(500).send(`Error updating phone: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.updateIsTakenById = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { id } = req.params;
     const { is_taken } = req.body;
 
@@ -208,7 +234,7 @@ exports.updateIsTakenById = async (req, res) => {
     }
 
     const query = 'UPDATE phones SET is_taken = ? WHERE id = ?';
-    const [results] = await pool.query(query, [is_taken, id]);
+    const [results] = await connection.query(query, [is_taken, id]);
 
     if (results.affectedRows === 0) {
       console.log('Phone not found');
@@ -220,11 +246,15 @@ exports.updateIsTakenById = async (req, res) => {
   } catch (err) {
     console.log(`Error updating phone: ${err.message}`);
     res.status(500).send(`Error updating phone: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 exports.updateIsTakenForAll = async (req, res) => {
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { is_taken } = req.body;
 
     if (typeof is_taken !== 'boolean') {
@@ -233,12 +263,14 @@ exports.updateIsTakenForAll = async (req, res) => {
     }
 
     const query = 'UPDATE phones SET is_taken = ?';
-    const [results] = await pool.query(query, [is_taken]);
+    const [results] = await connection.query(query, [is_taken]);
 
     console.log(`Updated is_taken for ${results.affectedRows} phones successfully`);
     res.status(200).send(`Updated is_taken for ${results.affectedRows} phones successfully`);
   } catch (err) {
     console.log(`Error updating phones: ${err.message}`);
     res.status(500).send(`Error updating phones: ${err.message}`);
+  } finally {
+    if (connection) connection.release();
   }
 };
