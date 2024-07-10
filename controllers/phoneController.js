@@ -159,6 +159,8 @@ const getRecordsByHour = async (req, res) => {
         COUNT(*) / COUNT(DISTINCT DATE_FORMAT(date, '%Y-%m-%d %H:00:00')) AS average_records_per_hour
       FROM 
         phone_otp;
+      WHERE 
+        otp IS NOT NULL;
     `;
 
     const [results] = await connection.query(query);

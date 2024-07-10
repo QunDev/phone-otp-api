@@ -5,9 +5,9 @@ let pool;
 function createPool() {
   pool = mysql.createPool({
     connectionLimit: 50,
-    host: '74.225.136.162',
-    user: 'quanph35528',
-    password: 'Qundevauto2k4!',
+    host: 'localhost',
+    user: 'root',
+    password: '',
     database: 'phone_otp_db',
     multipleStatements: true,
     connectTimeout: 20000,
