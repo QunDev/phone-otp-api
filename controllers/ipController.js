@@ -13,6 +13,16 @@ const createIP = async (req, res) => {
 
     const ipData = { ip, status: status || null, date: date || null };
 
+    // Kiểm tra xem IP đã tồn tại chưa
+    const checkQuery = 'SELECT COUNT(*) AS count FROM ip_addresses WHERE ip = ?';
+    const [checkResult] = await connection.query(checkQuery, [ip]);
+    
+    if (checkResult[0].count > 0) {
+      console.log('IP already exists');
+      return res.status(409).json({ message: 'IP already exists' });
+    }
+
+    // Chèn IP mới vào cơ sở dữ liệu
     const query = 'INSERT INTO ip_addresses (ip, status, date) VALUES (?, ?, ?)';
     const [result] = await connection.query(query, [ipData.ip, ipData.status, ipData.date]);
 
